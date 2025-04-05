@@ -39,10 +39,12 @@ def show_image_with_key_control(images, image_names):
         plt.pause(0.001)
 
         print("\nOptions:")
-        print("n - Next image")
-        print("b - Previous image")
-        print("f - Flag as bad annotation")
-        print("q - Quit review\n")
+        print("n  - Next image")
+        print("b  - Previous image")
+        print("f  - Flag as bad annotation")
+        print("s  - Skip next 10 images")
+        print("sf - Flag and skip next 10 images")
+        print("q  - Quit review\n")
 
         key = input("Your choice: ").strip().lower()
         plt.close(fig)
@@ -55,12 +57,21 @@ def show_image_with_key_control(images, image_names):
             bad_annotations.append(image_names[idx])
             print(f"Flagged: {image_names[idx]}")
             idx += 1
+        elif key == 's':
+            idx += 10
+        elif key == 'sf':
+            for j in range(10):
+                if idx + j < len(images):
+                    bad_annotations.append(image_names[idx + j])
+                    print(f"Flagged: {image_names[idx + j]}")
+            idx += 10
         elif key == 'q':
             break
         else:
-            print("Invalid input. Use n, b, f, or q.")
+            print("Invalid input. Use n, b, f, s, sf, or q.")
 
     return bad_annotations
+
 
 # Prepare images
 images = []
