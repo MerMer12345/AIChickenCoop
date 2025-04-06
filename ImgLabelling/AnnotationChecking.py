@@ -14,9 +14,9 @@ label_annotator = sv.LabelAnnotator()
 bad_annotations = []
 
 dataset = sv.DetectionDataset.from_yolo(
-    images_directory_path="datasetChickens/train/images",
-    annotations_directory_path="datasetChickens/train/labels",
-    data_yaml_path="datasetChickens/data.yaml")
+    images_directory_path="TestDataset/train/images",
+    annotations_directory_path="TestDataset/train/labels",
+    data_yaml_path="TestDataset/data.yaml")
 for i, (image_path, image, annotation) in enumerate(dataset):
     print(f"Loading: {image_path}, Image shape: {image.shape}, {i}")
 
@@ -89,7 +89,7 @@ for i, (image_path, image, annotation) in enumerate(dataset):
 flagged = show_image_with_key_control(images, image_names)
 
 # Save flagged results
-with open("bad_annotations.txt", "w") as f:
+with open("bad_annotations_TestData.txt", "w") as f:
     for name in flagged:
         f.write(name + "\n")
 
