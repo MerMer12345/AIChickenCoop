@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import cv2
 import matplotlib.pyplot as plt
 
-model = YOLO('trained_models/yolov8n/weights/best.pt')
+model = YOLO('trained_models/yolov5n/weights/best.pt')
 
 video_path = '../ImgLabelling/TestVids/SmallTest1.mp4'
 cap = cv2.VideoCapture(video_path)
