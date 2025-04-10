@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import cv2
 import matplotlib.pyplot as plt
 
-model = YOLO('trained_models/yolov5n/weights/best.pt')
+model = YOLO('trained_models/yolov8x/weights/best.pt')
 
 video_path = '../ImgLabelling/TestVids/SmallTest1.mp4'
 cap = cv2.VideoCapture(video_path)
@@ -57,7 +57,7 @@ def plot_detection_graph(counts, fps):
 
     plt.figure(figsize=(10, 5))
     plt.plot(time_seconds, counts, marker='o')
-    plt.title('Object Detection Over Time')
+    plt.title('Object Count Over Time')
     plt.xlabel('Time (seconds)')
     plt.ylabel('Number of Detected Objects')
     plt.grid(True)
