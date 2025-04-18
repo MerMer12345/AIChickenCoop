@@ -14,9 +14,9 @@ label_annotator = sv.LabelAnnotator()
 bad_annotations = []
 
 dataset = sv.DetectionDataset.from_yolo(
-    images_directory_path="TestDataset/train/images",
-    annotations_directory_path="TestDataset/train/labels",
-    data_yaml_path="TestDataset/data.yaml")
+    images_directory_path="ValidationDataset/train/images",
+    annotations_directory_path="ValidationDataset/train/labels",
+    data_yaml_path="ValidationDataset/data.yaml")
 for i, (image_path, image, annotation) in enumerate(dataset):
     print(f"Loading: {image_path}, Image shape: {image.shape}, {i}")
 

@@ -1,5 +1,12 @@
-ultralytics
-torch
+ultralytics~=8.3.105
+torch~=2.6.0+cu118
 torchvision
 torchaudio
-supervision
+supervision~=0.25.1
+autodistill
+scikit-learn
+autodistill_grounded_sam
+roboflow
+
+opencv-python~=4.11.0.86
+matplotlib~=3.10.1

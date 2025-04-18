@@ -1,7 +1,7 @@
 import os
 
 # Set your paths here
-dataset_dir = "ImgLabelling/TestDataset/train"
+dataset_dir = "ImgLabelling/ValidationDataset/train"
 images_dir = os.path.join(dataset_dir, "images")
 labels_dir = os.path.join(dataset_dir, "labels")
 bad_annotations_file = "ImgLabelling/bad_annotations_TestData.txt"
