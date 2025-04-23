@@ -29,20 +29,29 @@ while cap.isOpened():
     if not ret:
         break
 
-    results = model(frame)
+    # Perform detection with tracking
+    results = model.track(frame, persist=True)
     detections = results[0].boxes
-    num_objects = len(detections)
+
+    # Count unique IDs (if tracking worked correctly)
+    num_objects = 0
+    if detections.id is not None:
+        ids = detections.id.cpu().numpy()
+        num_objects = len(set(ids))  # Count unique object IDs
+    else:
+        num_objects = len(detections)
 
     object_counts.append(num_objects)
 
+    # Annotate the frame
     annotated_frame = results[0].plot()
     cv2.putText(
         annotated_frame,
-        f'Detected Objects: {num_objects}',
+        f'Tracked Objects: {num_objects}',
         org=(20, 40),
         fontFace=cv2.FONT_HERSHEY_SIMPLEX,
         fontScale=1,
-        color=(0, 255, 0),
+        color=(0, 255, 255),
         thickness=2
     )
 
@@ -56,13 +65,14 @@ while cap.isOpened():
 
     print(f'Frame: {frame_index} | FPS: {current_fps:.2f} | RAM Usage: {ram_usage:.2f} MB')
 
-    cv2.imshow('YOLO Detection with Count', annotated_frame)
+    cv2.imshow('YOLO Object Tracking', annotated_frame)
     out.write(annotated_frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
     frame_index += 1
+
 
 cap.release()
 out.release()

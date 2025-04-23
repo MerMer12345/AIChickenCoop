@@ -7,6 +7,7 @@ autodistill
 scikit-learn
 autodistill_grounded_sam
 roboflow
+pandas
 
 opencv-python~=4.11.0.86
 matplotlib~=3.10.1
