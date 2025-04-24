@@ -6,7 +6,7 @@ import psutil
 import os
 import csv
 
-model = YOLO('trained_models/yolov8x/weights/best.pt')
+model = YOLO('trained_models/yolo12x/weights/best.pt')
 
 video_path = '../ImgLabelling/TestVids/SmallTest1.mp4'
 cap = cv2.VideoCapture(video_path)
@@ -28,7 +28,10 @@ while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
+    #frame = cv2.equalizeHist(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))  # for grayscale contrast enhancement
+    #frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)  # convert back to 3-channel for YOLO
 
+    #results = model(frame, conf=0.4, iou=0.5)
     results = model(frame)
     detections = results[0].boxes
     num_objects = len(detections)
@@ -68,7 +71,7 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 
-def save_detection_data(counts, fps, filename='object_countsV8.csv'):
+def save_detection_data(counts, fps, filename='object_counts.csv'):
     frames = list(range(len(counts)))
     time_seconds = [f / fps for f in frames]
 

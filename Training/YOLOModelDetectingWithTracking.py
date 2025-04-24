@@ -5,8 +5,10 @@ import time
 import psutil
 import os
 import csv
+from deep_sort_realtime.deepsort_tracker import DeepSort
 
 model = YOLO('trained_models/yolov8x/weights/best.pt')
+tracker = DeepSort(max_age=40, n_init=2, max_iou_distance=0.7, nn_budget=100)
 
 video_path = '../ImgLabelling/TestVids/SmallTest1.mp4'
 cap = cv2.VideoCapture(video_path)
@@ -15,70 +17,120 @@ width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps    = cap.get(cv2.CAP_PROP_FPS)
 
-out = cv2.VideoWriter('output_detected_with_count.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+out = cv2.VideoWriter('output_detected_with_deepsort_filtered.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
 object_counts = []
 frame_index = 0
-
 process = psutil.Process(os.getpid())
+
+# Memory and recovery setup
+active_tracks = {}  # track_id: {'center': (x, y), 'last_frame': int}
+lost_tracks = {}    # same structure
+recovered_ids = set()
+track_log_filename = 'track_recovery_log.csv'
+
+# Setup CSV log
+with open(track_log_filename, 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(['Event', 'Track ID', 'Frame', 'Time (s)'])
+
+MAX_LOST_FRAMES = int(fps * 2)  # 2 seconds of memory
+MAX_MATCH_DIST = 50  # pixels
 
 while cap.isOpened():
     start_time = time.time()
-
     ret, frame = cap.read()
     if not ret:
         break
 
-    # Perform detection with tracking
-    results = model.track(frame, persist=True)
-    detections = results[0].boxes
+    orig_frame = frame.copy()
 
-    # Count unique IDs (if tracking worked correctly)
-    num_objects = 0
-    if detections.id is not None:
-        ids = detections.id.cpu().numpy()
-        num_objects = len(set(ids))  # Count unique object IDs
-    else:
-        num_objects = len(detections)
+    results = model(orig_frame)[0]
+    boxes = sorted(results.boxes, key=lambda b: b.conf[0], reverse=True)[:4]
 
+    detections = []
+    for box in boxes:
+        conf = float(box.conf[0])
+        if conf < 0.4:
+            continue
+        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+        cls = int(box.cls[0])
+        detections.append(([x1, y1, x2 - x1, y2 - y1], conf, cls))
+
+    tracks = tracker.update_tracks(detections, frame=orig_frame)
+
+    current_ids = set()
+    for track in tracks:
+        if not track.is_confirmed():
+            continue
+
+        track_id = track.track_id
+        l, t, r, b = map(int, track.to_ltrb())
+        cx, cy = (l + r) // 2, (t + b) // 2
+        current_ids.add(track_id)
+
+        # Recovery logic
+        recovered = False
+        for lost_id, lost_info in lost_tracks.items():
+            lx, ly = lost_info['center']
+            frames_since_lost = frame_index - lost_info['last_frame']
+            dist = ((cx - lx)**2 + (cy - ly)**2)**0.5
+            if dist < MAX_MATCH_DIST and frames_since_lost <= MAX_LOST_FRAMES:
+                recovered = True
+                recovered_ids.add(track_id)
+                # Log recovery
+                with open(track_log_filename, 'a', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['Recovered', track_id, frame_index, f"{frame_index / fps:.2f}"])
+                break
+
+        # Draw tracked box
+        box_color = (255, 0, 0) if track_id in recovered_ids else (0, 255, 0)
+        cv2.rectangle(orig_frame, (l, t), (r, b), box_color, 2)
+        cv2.putText(orig_frame, f'ID {track_id}', (l, t - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+
+        # Update active memory
+        active_tracks[track_id] = {'center': (cx, cy), 'last_frame': frame_index}
+        lost_tracks.pop(track_id, None)
+
+    # Find lost tracks
+    previous_ids = set(active_tracks.keys())
+    missing_ids = previous_ids - current_ids
+    for track_id in missing_ids:
+        last_seen = active_tracks[track_id]['last_frame']
+        if frame_index - last_seen <= MAX_LOST_FRAMES:
+            lost_tracks[track_id] = active_tracks[track_id]
+            # Log lost track
+            with open(track_log_filename, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['Lost', track_id, frame_index, f"{frame_index / fps:.2f}"])
+        active_tracks.pop(track_id)
+
+    num_objects = len(current_ids)
     object_counts.append(num_objects)
 
-    # Annotate the frame
-    annotated_frame = results[0].plot()
-    cv2.putText(
-        annotated_frame,
-        f'Tracked Objects: {num_objects}',
-        org=(20, 40),
-        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale=1,
-        color=(0, 255, 255),
-        thickness=2
-    )
-
-    # Calculate FPS
     end_time = time.time()
     processing_time = end_time - start_time
     current_fps = 1 / processing_time if processing_time > 0 else 0
-
-    # Get RAM usage in MB
     ram_usage = process.memory_info().rss / 1024 / 1024
 
     print(f'Frame: {frame_index} | FPS: {current_fps:.2f} | RAM Usage: {ram_usage:.2f} MB')
 
-    cv2.imshow('YOLO Object Tracking', annotated_frame)
-    out.write(annotated_frame)
+    cv2.putText(orig_frame, f'Tracked Objects: {num_objects}', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+    cv2.imshow('YOLO + Deep SORT (Recovery)', orig_frame)
+    out.write(orig_frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
     frame_index += 1
 
-
 cap.release()
 out.release()
 cv2.destroyAllWindows()
 
-def save_detection_data(counts, fps, filename='object_countsV8.csv'):
+
+def save_detection_data(counts, fps, filename='object_counts.csv'):
     frames = list(range(len(counts)))
     time_seconds = [f / fps for f in frames]
 
