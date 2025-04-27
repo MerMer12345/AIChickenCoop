@@ -1,18 +1,12 @@
 from ultralytics import YOLO
 import cv2
+import matplotlib.pyplot as plt
 import time
 import psutil
 import os
 import csv
-from bytetracker import BYTETracker
-import numpy as np
-import matplotlib.pyplot as plt
 
-# Initialize YOLOv8 model
-model = YOLO('trained_models/yolov8x/weights/best.pt')
-
-# Initialize ByteTrack
-tracker = BYTETracker(track_thresh=0.5, track_buffer=30, match_thresh=0.8, frame_rate=30)
+model = YOLO('../Training/trained_models/yolo12x/weights/best.pt')
 
 video_path = '../ImgLabelling/TestVids/SmallTest1.mp4'
 cap = cv2.VideoCapture(video_path)
@@ -21,56 +15,52 @@ width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps    = cap.get(cv2.CAP_PROP_FPS)
 
-out = cv2.VideoWriter('output_detected_with_bytetrack.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+out = cv2.VideoWriter('Output_Vids/output_detected_with_count.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
 object_counts = []
 frame_index = 0
+
 process = psutil.Process(os.getpid())
 
 while cap.isOpened():
     start_time = time.time()
+
     ret, frame = cap.read()
     if not ret:
         break
+    #frame = cv2.equalizeHist(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))  # for grayscale contrast enhancement
+    #frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)  # convert back to 3-channel for YOLO
 
-    # Run YOLOv8 detection
-    results = model(frame)[0]
+    #results = model(frame, conf=0.4, iou=0.5)
+    results = model(frame)
+    detections = results[0].boxes
+    num_objects = len(detections)
 
-    # Prepare detections for ByteTrack
-    detections = []
-    for box in results.boxes:
-        x1, y1, x2, y2 = box.xyxy[0].tolist()
-        score = box.conf[0].item()
-        cls = int(box.cls[0].item())
-        detections.append([x1, y1, x2, y2, score, cls])
+    object_counts.append(num_objects)
 
-    detections = np.array(detections)
+    annotated_frame = results[0].plot()
+    cv2.putText(
+        annotated_frame,
+        f'Detected Objects: {num_objects}',
+        org=(20, 40),
+        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+        fontScale=1,
+        color=(0, 255, 0),
+        thickness=2
+    )
 
-    # Update tracker
-    online_targets = tracker.update(detections, frame)
-
-    # Draw tracking results
-    for t in online_targets:
-        tlwh = t.tlwh
-        track_id = t.track_id
-        x1, y1, w, h = tlwh
-        x2, y2 = x1 + w, y1 + h
-        cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-        cv2.putText(frame, f'ID {track_id}', (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
-
-    object_counts.append(len(online_targets))
-
-    # Calculate FPS and RAM usage
+    # Calculate FPS
     end_time = time.time()
     processing_time = end_time - start_time
     current_fps = 1 / processing_time if processing_time > 0 else 0
+
+    # Get RAM usage in MB
     ram_usage = process.memory_info().rss / 1024 / 1024
 
     print(f'Frame: {frame_index} | FPS: {current_fps:.2f} | RAM Usage: {ram_usage:.2f} MB')
 
-    cv2.putText(frame, f'Tracked Objects: {len(online_targets)}', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-    cv2.imshow('YOLOv8 + ByteTrack', frame)
-    out.write(frame)
+    cv2.imshow('YOLO Detection with Count', annotated_frame)
+    out.write(annotated_frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
@@ -81,11 +71,11 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 
-def save_detection_data(counts, fps, filename='object_counts.csv'):
+def save_detection_data(counts, fps, file='Output_Vids/object_countsDeepSORT.csv'):
     frames = list(range(len(counts)))
     time_seconds = [f / fps for f in frames]
 
-    with open(filename, mode='w', newline='') as file:
+    with open(file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Frame', 'Time (s)', 'Object Count'])
         for frame, time_sec, count in zip(frames, time_seconds, counts):

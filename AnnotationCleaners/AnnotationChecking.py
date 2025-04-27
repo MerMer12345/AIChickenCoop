@@ -1,8 +1,12 @@
+import os.path
+
 import supervision as sv
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib
 import cv2
+from removeBadAnnotations import remove_bad_annotations
+
 
 # Use interactive backend
 matplotlib.use('TkAgg')
@@ -12,16 +16,19 @@ box_annotator = sv.BoxAnnotator()
 label_annotator = sv.LabelAnnotator()
 
 bad_annotations = []
+dataset_dir = "../ImgLabelling/ValidationDataset"
 
 dataset = sv.DetectionDataset.from_yolo(
-    images_directory_path="ValidationDataset/train/images",
-    annotations_directory_path="ValidationDataset/train/labels",
-    data_yaml_path="ValidationDataset/data.yaml")
+    images_directory_path=os.path.join(dataset_dir, "train/images"),
+    annotations_directory_path=os.path.join(dataset_dir, "train/labels"),
+    data_yaml_path=os.path.join(dataset_dir, "data.yaml"))
+
+
 for i, (image_path, image, annotation) in enumerate(dataset):
     print(f"Loading: {image_path}, Image shape: {image.shape}, {i}")
 
 
-def show_image_with_key_control(images, image_names):
+def showimg(images, image_names):
     idx = 0
     while 0 <= idx < len(images):
         fig, ax = plt.subplots()
@@ -85,13 +92,21 @@ for i, (image_path, image, annotation) in enumerate(dataset):
     image_names.append(Path(image_path).name)
     images.append(annotated_image)
 
-# Launch browser
-flagged = show_image_with_key_control(images, image_names)
+flagged = showimg(images, image_names)
 
-# Save flagged results
-with open("bad_annotations_TestData.txt", "w") as f:
-    for name in flagged:
-        f.write(name + "\n")
+
+# Save or delete flagged results
+print("s - Save Results")
+print("d - Delete bad annotations")
+key = input("Your choice: ").strip().lower()
+if key == 's':
+    with open("Bad_annotations/bad_annotations_TestData.txt", "w") as f:
+        for name in flagged:
+            f.write(name + "\n")
+elif key == 'd':
+    dataset_dir = "../ImgLabelling/ValidationDataset/train"
+    bad_annotations_file = "Bad_annotations/bad_annotations_TestData.txt"
+    remove_bad_annotations(dataset_dir, bad_annotations_file)
 
 print("\nReview complete.")
 print(f"Flagged {len(flagged)} images with bad annotations.")

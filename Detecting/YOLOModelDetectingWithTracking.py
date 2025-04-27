@@ -7,7 +7,7 @@ import os
 import csv
 from deep_sort_realtime.deepsort_tracker import DeepSort
 
-model = YOLO('trained_models/yolov8x/weights/best.pt')
+model = YOLO('../Training/trained_models/yolov8x/weights/best.pt')
 tracker = DeepSort(max_age=40, n_init=2, max_iou_distance=0.7, nn_budget=100)
 
 video_path = '../ImgLabelling/TestVids/SmallTest1.mp4'
@@ -17,7 +17,7 @@ width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps    = cap.get(cv2.CAP_PROP_FPS)
 
-out = cv2.VideoWriter('output_detected_with_deepsort_filtered.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+out = cv2.VideoWriter('Output_Vids/output_detected_with_deepsort_filtered.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
 object_counts = []
 frame_index = 0
@@ -27,7 +27,7 @@ process = psutil.Process(os.getpid())
 active_tracks = {}  # track_id: {'center': (x, y), 'last_frame': int}
 lost_tracks = {}    # same structure
 recovered_ids = set()
-track_log_filename = 'track_recovery_log.csv'
+track_log_filename = 'Logs/track_recovery_log.csv'
 
 # Setup CSV log
 with open(track_log_filename, 'w', newline='') as f:
@@ -130,11 +130,11 @@ out.release()
 cv2.destroyAllWindows()
 
 
-def save_detection_data(counts, fps, filename='object_counts.csv'):
+def save_detection_data(counts, fps, file='Output_Vids/object_countsDeepSORT.csv'):
     frames = list(range(len(counts)))
     time_seconds = [f / fps for f in frames]
 
-    with open(filename, mode='w', newline='') as file:
+    with open(file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Frame', 'Time (s)', 'Object Count'])
         for frame, time_sec, count in zip(frames, time_seconds, counts):
