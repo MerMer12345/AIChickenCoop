@@ -5,3 +5,5 @@
 /ImgLabelling/datasetChickens/
 /ImgLabelling/videosChickens/
 
+/Training/trained_models/yolo12x/
+/Training/trained_models/yolov8x/
