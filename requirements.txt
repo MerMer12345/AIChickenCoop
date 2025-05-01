@@ -9,6 +9,6 @@ autodistill_grounded_sam
 roboflow
 pandas
 deep_sort_realtime
-
+psutil
 opencv-python~=4.11.0.86
 matplotlib~=3.10.1
